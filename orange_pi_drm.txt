@@ -1,0 +1,103 @@
+
+
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- orangepi_kk_defconfig
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- -j 4
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- dtbs -j 4
+echo "hello world"
+
+
+
+6. 格式化 sd 卡
+	使用GParted工具按照下面分区表分区：
+	part-type	start-sector	size(sector) 			file			usage
+	
+	raw		0		16(8K)	 	(8K)		(GPT)			Unused, available for MBR (partition table etc.)
+	raw		16		49136(24M-8K) 	(24568K)	spl/sunxi-spl.bin	Initial SPL loader
+	fat16		49152(24M)	81920(40M)	(40960K)	uImage/dtb		boot
+	ext4		131072		385024(188M)	(192512K)	rootfs			rootfs
+	ext4		516096		14983168(7.14G) 		userdata		userdata
+
+
+
+7. 烧写
+	sudo dd if=u-boot-sunxi-with-spl.bin of=/dev/sdc bs=1K seek=8
+	
+	sudo dd if=boot.img of=/dev/sdc1
+	
+	sudo dd if=rootfs.img of=/dev/sdc2
+	
+	sun8i-h3-orangepi-one.dtb
+	
+	
+	
+setenv bootargs "console=ttyS0,115200 init=/linuxrc earlyprintk root=/dev/mmcblk0p2 rootfstype=ext4 rw rootwait panic=10 selinux=0"
+setenv bootcmd "fatload mmc 0:1 0x46000000 zImage;fatload mmc 0:1 0x48000000 sun8i-h3-orangepi-one.dtb;bootz 0x46000000 - 0x48000000"
+saveenv
+
+
+
+mkfs.ext4 rootfs.img
+sudo mount -o loop rootfs.img ./mnt/
+
+rm -rf mnt
+mkdir mnt
+dd if=/dev/zero of=boot.img bs=1024K count=40 seek=0
+sync
+mkfs.fat boot.img
+sudo mount -o loop boot.img ./mnt/
+sudo cp linux-5.4/arch/arm/boot/zImage linux-5.4/arch/arm/boot/dts/sun8i-h3-orangepi-one.dtb mnt/
+sync
+sudo umount mnt
+rm -rf ./mnt
+sync
+sudo dd if=boot.img of=/dev/sdc1
+sync
+sync
+
+
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- defconfig
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- menuconfig
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- -j4
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- install
+
+sudo cp busybox-1.32.1/_install/* rootfs/ -rf
+sudo cp -P /usr/arm-linux-gnueabihf/lib/* rootfs/lib/
+sync
+
+
+
+mkdir tmpfs
+rm -rf rootfs.img
+dd if=/dev/zero of=rootfs.img bs=1024K count=188 seek=0
+mkfs.ext4 rootfs.img
+sudo mount -t ext4 rootfs.img tmpfs/ -o loop
+sync
+sudo cp rootfs/* tmpfs/ -r 
+sudo umount tmpfs
+rm -rf tmpfs
+
+
+
+mkdir install
+./configure  --host=arm-linux-gnueabihf --prefix=$(pwd)/install
+make -j 4
+make install
+
+测试：
+cp Z:\drm\libdrm-2.4.100\tests\modetest\.libs\modetest U-disk
+cp Z:\drm\libdrm-2.4.100\install\lib\libdrm.so.2 U-disk
+
+./modetest -M sun4i-drm -c
+./modetest -M sun4i-drm -s 47:720x400@AR24
+
+
+
+
+
+
+
+
+
+
+
+
