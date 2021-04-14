@@ -1,4 +1,4 @@
-
+uboot 2021.01
 
 make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- orangepi_kk_defconfig
 make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- -j 4
